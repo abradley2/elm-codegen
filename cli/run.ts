@@ -397,15 +397,16 @@ export async function init(desiredInstallDir: string | null) {
   const codeGenJson = codeGenJsonDefault()
 
   fs.mkdirSync(base)
-  fs.mkdirSync(path.join(base, "Gen"))
-  fs.mkdirSync(path.join(base, "Gen", "CodeGen"))
+  fs.mkdirSync(path.join(base, "codegen-src"))
+  fs.mkdirSync(path.join(base, "codegen-src", "Gen"))
+  fs.mkdirSync(path.join(base, "codegen-src", "Gen", "CodeGen"))
   fs.mkdirSync(path.join(base, "helpers"))
 
   fs.writeFileSync(path.join(base, "elm.json"), templates.init.elmJson())
-  fs.writeFileSync(path.join(base, "Generate.elm"), templates.init.starter())
-  fs.writeFileSync(path.join(base, "Gen", "CodeGen", "Generate.elm"), templates.init.codegenProgram())
+  fs.writeFileSync(path.join(base, "codegen-src", "Generate.elm"), templates.init.starter())
+  fs.writeFileSync(path.join(base, "codegen-src", "Gen", "CodeGen", "Generate.elm"), templates.init.codegenProgram())
   fs.writeFileSync(path.join(base, "helpers", "Helper.elm"), templates.init.helper())
-  const updatedCodeGenJson = await install_package("elm/core", install_dir, null, codeGenJson)
+  const updatedCodeGenJson = await install_package("elm/core", path.join(install_dir, "codegen-src"), null, codeGenJson)
 
   let helperPath = path.join(base, "helpers") + path.sep
   // install local helpers
@@ -413,7 +414,7 @@ export async function init(desiredInstallDir: string | null) {
   getFilesWithin(helperPath, ".elm").forEach((elmPath) => {
     elmSources.push(fs.readFileSync(elmPath).toString())
   })
-  run_package_generator(install_dir, { elmSource: elmSources })
+  run_package_generator(path.join(install_dir, "codegen-src"), { elmSource: elmSources })
   updatedCodeGenJson.dependencies.local.push(helperPath)
 
   fs.writeFileSync(path.join(base, "elm.codegen.json"), codeGenJsonToString(updatedCodeGenJson))
