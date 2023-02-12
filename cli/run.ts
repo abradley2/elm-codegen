@@ -256,6 +256,8 @@ async function install_package(
   version: string | null,
   codeGenJson: CodeGenJson
 ): Promise<CodeGenJson> {
+  const install_src_dir = path.join(install_dir, "codegen-src")
+
   if (version == null) {
     const search = await httpsGetJson("https://elm-package-cache-psi.vercel.app/search.json")
     for (let found of search) {
@@ -298,7 +300,7 @@ async function install_package(
   }
 
   try {
-    run_package_generator(install_dir, { docs: docs })
+    run_package_generator(install_src_dir, { docs: docs })
     codeGenJson.dependencies.packages[pkg] = version
     // fs.writeFileSync(path.join(install_dir, "elm.codegen.json"), codeGenJsonToString(codeGenJson))
     return codeGenJson
@@ -380,6 +382,7 @@ function codeGenJsonDefault(): CodeGenJson {
 //    Generates some files and installs `core`
 export async function init(desiredInstallDir: string | null) {
   const install_dir = desiredInstallDir || "codegen"
+  const install_src_dir = path.join(install_dir, "codegen-src")
 
   const base = path.join(".", install_dir)
   // create folder
@@ -406,7 +409,7 @@ export async function init(desiredInstallDir: string | null) {
   fs.writeFileSync(path.join(base, "codegen-src", "Generate.elm"), templates.init.starter())
   fs.writeFileSync(path.join(base, "codegen-src", "Gen", "CodeGen", "Generate.elm"), templates.init.codegenProgram())
   fs.writeFileSync(path.join(base, "helpers", "Helper.elm"), templates.init.helper())
-  const updatedCodeGenJson = await install_package("elm/core", path.join(install_dir, "codegen-src"), null, codeGenJson)
+  const updatedCodeGenJson = await install_package("elm/core", install_dir, null, codeGenJson)
 
   let helperPath = path.join(base, "helpers") + path.sep
   // install local helpers
@@ -414,7 +417,7 @@ export async function init(desiredInstallDir: string | null) {
   getFilesWithin(helperPath, ".elm").forEach((elmPath) => {
     elmSources.push(fs.readFileSync(elmPath).toString())
   })
-  run_package_generator(path.join(install_dir, "codegen-src"), { elmSource: elmSources })
+  run_package_generator(install_src_dir, { elmSource: elmSources })
   updatedCodeGenJson.dependencies.local.push(helperPath)
 
   fs.writeFileSync(path.join(base, "elm.codegen.json"), codeGenJsonToString(updatedCodeGenJson))
@@ -432,6 +435,8 @@ export async function init(desiredInstallDir: string | null) {
 }
 
 async function reinstall_everything(install_dir: string, codeGenJson: CodeGenJson) {
+  const install_src_dir = path.join(install_dir, "codegen-src")
+
   console.log("Installing dependencies from " + chalk.yellow("elm.codegen.json"))
 
   const emptyCodeGenJson = codeGenJsonDefault()
@@ -445,7 +450,7 @@ async function reinstall_everything(install_dir: string, codeGenJson: CodeGenJso
     await install_package(key, install_dir, version, emptyCodeGenJson)
   }
 
-  const genFolderPath = path.join(install_dir, "Gen", "CodeGen")
+  const genFolderPath = path.join(install_src_dir, "Gen", "CodeGen")
   fs.mkdirSync(genFolderPath, { recursive: true })
   fs.writeFileSync(path.join(genFolderPath, "Generate.elm"), templates.init.codegenProgram())
   const elmSources = []
@@ -454,7 +459,7 @@ async function reinstall_everything(install_dir: string, codeGenJson: CodeGenJso
     if (item.endsWith(".json")) {
       console.log("From json " + item)
       let docs = JSON.parse(fs.readFileSync(item).toString())
-      run_package_generator(install_dir, { docs: docs })
+      run_package_generator(install_src_dir, { docs: docs })
     } else if (item.endsWith(".elm")) {
       elmSources.push(fs.readFileSync(item).toString())
     } else if (item.endsWith(path.sep)) {
@@ -470,7 +475,7 @@ async function reinstall_everything(install_dir: string, codeGenJson: CodeGenJso
     }
   }
   if (elmSources.length > 0) {
-    run_package_generator(install_dir, { elmSource: elmSources })
+    run_package_generator(install_src_dir, { elmSource: elmSources })
   }
   console.log(chalk.green("Success!"))
 }
@@ -515,6 +520,7 @@ function copyHelpers(codeGenJson: CodeGenJson, options: Options) {
 
 export async function run_install(pkg: string, version: string | null) {
   const install_dir = getCodeGenJsonDir()
+  const install_src_dir = path.join(install_dir, "codegen-src")
   let codeGenJson = getCodeGenJson(install_dir)
   const codeGenJsonPath = path.join(install_dir, "elm.codegen.json")
   if (!!pkg) {
@@ -535,7 +541,7 @@ export async function run_install(pkg: string, version: string | null) {
       // Install local docs file
       console.log(format_block(["Adding " + chalk.cyan(pkg) + " to local dependencies and installing."]))
       let docs = JSON.parse(fs.readFileSync(pkg).toString())
-      run_package_generator(install_dir, { docs: docs })
+      run_package_generator(install_src_dir, { docs: docs })
       codeGenJson.dependencies.local.push(pkg)
       fs.writeFileSync(codeGenJsonPath, codeGenJsonToString(codeGenJson))
     } else if (pkg.endsWith(path.sep)) {
@@ -547,13 +553,13 @@ export async function run_install(pkg: string, version: string | null) {
         elmSources.push(fs.readFileSync(elmPath).toString())
       })
 
-      run_package_generator(install_dir, { elmSource: elmSources })
+      run_package_generator(install_src_dir, { elmSource: elmSources })
       codeGenJson.dependencies.local.push(pkg)
       fs.writeFileSync(codeGenJsonPath, codeGenJsonToString(codeGenJson))
     } else if (pkg.endsWith(".elm")) {
       //
       // Install local elm file
-      run_package_generator(install_dir, { elmSource: [fs.readFileSync(pkg).toString()] })
+      run_package_generator(install_src_dir, { elmSource: [fs.readFileSync(pkg).toString()] })
       codeGenJson.dependencies.local.push(pkg)
       fs.writeFileSync(codeGenJsonPath, codeGenJsonToString(codeGenJson))
     } else {
