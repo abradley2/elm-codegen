@@ -602,7 +602,7 @@ function parseJSONSafe(hopefullyJsonString: string) {
 }
 
 export async function run_generation_from_cli(desiredElmFile: string | null, options: CliOptions) {
-  let elmFile = "Generate.elm"
+  let elmFile = "codegen-src/Generate.elm"
   let cwd = "./codegen"
 
   if (desiredElmFile != null) {
